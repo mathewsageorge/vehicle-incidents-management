@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { uploadImage } from '@/lib/cloudinary'
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,12 +39,44 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Upload to Cloudinary
-    const result = await uploadImage(buffer, file.name)
+    // Direct Cloudinary upload without external library
+    const timestamp = Math.round(Date.now() / 1000)
+    const folder = 'vehicle-incidents'
+    const publicId = `${folder}/${timestamp}_${file.name.replace(/\.[^/.]+$/, '')}`
+
+    // Create signature for Cloudinary
+    const crypto = require('crypto')
+    const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${process.env.CLOUDINARY_API_SECRET}`
+    const signature = crypto.createHash('sha1').update(stringToSign).digest('hex')
+
+    // Upload directly to Cloudinary
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', new Blob([buffer], { type: file.type }))
+    uploadFormData.append('api_key', process.env.CLOUDINARY_API_KEY!)
+    uploadFormData.append('timestamp', timestamp.toString())
+    uploadFormData.append('signature', signature)
+    uploadFormData.append('folder', folder)
+    uploadFormData.append('public_id', publicId)
+
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+      {
+        method: 'POST',
+        body: uploadFormData,
+      }
+    )
+
+    if (!cloudinaryResponse.ok) {
+      const errorText = await cloudinaryResponse.text()
+      console.error('Cloudinary error:', errorText)
+      throw new Error(`Cloudinary upload failed: ${cloudinaryResponse.status}`)
+    }
+
+    const result = await cloudinaryResponse.json()
 
     return NextResponse.json({
-      url: (result as any).secure_url,
-      publicId: (result as any).public_id,
+      url: result.secure_url,
+      publicId: result.public_id,
     })
   } catch (error) {
     console.error('Error uploading file:', error)
