@@ -3,6 +3,14 @@ import { uploadImage } from '@/lib/cloudinary'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Cloudinary is configured
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      return NextResponse.json(
+        { error: 'Cloudinary is not configured. Please add environment variables.' },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
@@ -41,8 +49,16 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error uploading file:', error)
+    console.error('Cloudinary config:', {
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'Set' : 'Missing',
+      api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Missing',
+      api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing',
+    })
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { 
+        error: 'Failed to upload file',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
