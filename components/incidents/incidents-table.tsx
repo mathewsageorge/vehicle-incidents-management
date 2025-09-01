@@ -12,6 +12,16 @@ import { formatDateTime, getSeverityColor, getStatusColor } from '@/lib/utils'
 import { Search, Filter, Eye, Edit, Download } from 'lucide-react'
 import Link from 'next/link'
 
+interface IncidentsResponse {
+  incidents: any[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
 interface IncidentsTableProps {
   showFilters?: boolean
 }
@@ -45,6 +55,7 @@ export function IncidentsTable({ showFilters = true }: IncidentsTableProps) {
       // Add incident to updating set
       setUpdatingIncidents(prev => new Set(prev).add(incidentId))
       
+      const incidents = data?.incidents || []
       const incident = incidents.find((i: any) => i.id.toString() === incidentId)
       const oldStatus = incident?.status
       
@@ -96,8 +107,8 @@ export function IncidentsTable({ showFilters = true }: IncidentsTableProps) {
     )
   }
 
-  const incidents = data?.incidents || []
-  const pagination = data?.pagination
+  const incidents = (data as IncidentsResponse)?.incidents || []
+  const pagination = (data as IncidentsResponse)?.pagination
 
   return (
     <div className="space-y-4">
@@ -169,6 +180,7 @@ export function IncidentsTable({ showFilters = true }: IncidentsTableProps) {
               <table className="w-full">
                 <thead className="border-b">
                   <tr className="border-b">
+                    <th className="text-left p-4">S.No</th>
                     <th className="text-left p-4">Incident</th>
                     <th className="text-left p-4">Vehicle</th>
                     <th className="text-left p-4">Status</th>
@@ -178,8 +190,13 @@ export function IncidentsTable({ showFilters = true }: IncidentsTableProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {incidents.map((incident: any) => (
+                  {incidents.map((incident: any, index: number) => (
                     <tr key={incident.id} className="border-b hover:bg-muted/50">
+                      <td className="p-4">
+                        <div className="font-medium text-muted-foreground">
+                          {(pagination?.page - 1) * pagination?.limit + index + 1}
+                        </div>
+                      </td>
                       <td className="p-4">
                         <div>
                           <div className="font-medium">{incident.title}</div>
@@ -255,12 +272,17 @@ export function IncidentsTable({ showFilters = true }: IncidentsTableProps) {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {incidents.map((incident: any) => (
+        {incidents.map((incident: any, index: number) => (
           <Card key={incident.id}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-lg">{incident.title}</CardTitle>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      #{(pagination?.page - 1) * pagination?.limit + index + 1}
+                    </span>
+                    <CardTitle className="text-lg">{incident.title}</CardTitle>
+                  </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {incident.car?.make} {incident.car?.model} ({incident.car?.licensePlate})
                   </p>
